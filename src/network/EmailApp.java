@@ -9,11 +9,13 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.util.*;
 
-public class EmailReceiver extends JFrame {
+public class EmailApp extends JFrame {
     private JTextField emailField;
     private JPasswordField passwordField;
     private JList<String> emailList;
     private JTextArea messageArea;
+    private JTextField toField, subjectField;
+    private JTextArea composeArea;
     private DefaultListModel<String> listModel;
     private Map<String, Message> messagesMap;
     private Folder folder;
@@ -24,9 +26,9 @@ public class EmailReceiver extends JFrame {
     private String userEmail;   
     private String userPassword;
 
-    public EmailReceiver() {
-        setTitle("Email Receiver (Gmail)");
-        setSize(600, 400);
+    public EmailApp() {
+        setTitle("Email Application (Gmail)");
+        setSize(600, 500);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLocationRelativeTo(null);  
 
@@ -65,11 +67,29 @@ public class EmailReceiver extends JFrame {
         JButton refreshButton = new JButton("Refresh");
         refreshButton.addActionListener(e -> receiveEmail());
 
+        // Panel gửi email
+        JPanel sendPanel = new JPanel(new GridLayout(4, 2));
+        toField = new JTextField();
+        subjectField = new JTextField();
+        composeArea = new JTextArea(5, 20);
+        JButton sendButton = new JButton("Send Email");
+
+        sendButton.addActionListener(e -> sendEmail());
+
+        sendPanel.add(new JLabel("To:"));
+        sendPanel.add(toField);
+        sendPanel.add(new JLabel("Subject:"));
+        sendPanel.add(subjectField);
+        sendPanel.add(new JLabel("Message:"));
+        sendPanel.add(new JScrollPane(composeArea));
+        sendPanel.add(new JLabel(""));
+        sendPanel.add(sendButton);
+
         JPanel buttonPanel = new JPanel();
         buttonPanel.add(refreshButton);
 
         add(splitPane, BorderLayout.CENTER);
-        add(buttonPanel, BorderLayout.SOUTH);
+        add(sendPanel, BorderLayout.SOUTH);
         
         setVisible(true);
     }
@@ -133,19 +153,20 @@ public class EmailReceiver extends JFrame {
                     messagesMap.put(subject, message);
                 }
 
-                folder.close(false);
-                store.close();
+                // Không đóng thư mục ở đây, để nó vẫn mở
             } catch (Exception ex) {
                 ex.printStackTrace();
-                JOptionPane.showMessageDialog(this, "Failed to receive email: " + ex.getMessage());
+                JOptionPane.showMessageDialog(this, "Failed to receive email.");
             }
         }).start();
     }
 
     private void displayEmailContent(Message message) {
         try {
+            // Kiểm tra xem thư mục có còn mở không
             if (folder == null || !folder.isOpen()) {
-                folder.open(Folder.READ_ONLY);
+                JOptionPane.showMessageDialog(this, "Folder is closed. Please refresh.");
+                return;
             }
 
             StringBuilder content = new StringBuilder();
@@ -167,9 +188,49 @@ public class EmailReceiver extends JFrame {
             messageArea.setText(content.toString());
         } catch (Exception ex) {
             ex.printStackTrace();
-            messageArea.setText("Failed to display email content: " + ex.getMessage());
+            messageArea.setText("Failed to display email content.");
         }
     }
+
+
+    private void sendEmail() {
+        String to = toField.getText();
+        String subject = subjectField.getText();
+        String body = composeArea.getText();
+
+        new Thread(() -> {
+            try {
+                Properties properties = new Properties();
+                properties.put("mail.smtp.host", "smtp.gmail.com");
+                properties.put("mail.smtp.port", "587");
+                properties.put("mail.smtp.auth", "true");
+                properties.put("mail.smtp.starttls.enable", "true");
+
+                Session session = Session.getInstance(properties, new Authenticator() {
+                    protected PasswordAuthentication getPasswordAuthentication() {
+                        return new PasswordAuthentication(userEmail, userPassword);
+                    }
+                });
+
+                Message message = new MimeMessage(session);
+                message.setFrom(new InternetAddress(userEmail));
+                message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(to));
+                message.setSubject(subject);
+                message.setText(body);
+
+                Transport.send(message);
+                JOptionPane.showMessageDialog(this, "Email sent successfully!");
+
+                // Cập nhật danh sách email sau khi gửi
+                receiveEmail(); 
+            } catch (Exception ex) {
+                ex.printStackTrace();
+                JOptionPane.showMessageDialog(this, "Failed to send email.");
+            }
+        }).start();
+    }
+
+
 
     private void initializeUDPListener() {
         try {
@@ -189,16 +250,12 @@ public class EmailReceiver extends JFrame {
             }).start();
         } catch (Exception e) {
             e.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Failed to initialize UDP listener: " + e.getMessage());
+            JOptionPane.showMessageDialog(this, "Failed to initialize UDP listener.");
         }
     }
 
     private void updateEmailList(String receivedMessage) {
-        // Phân tích và cập nhật danh sách email từ thông điệp nhận được
-        // Ví dụ: Nếu thông điệp chứa subject mới, bạn có thể thêm vào danh sách
         JOptionPane.showMessageDialog(this, "Received via UDP:\n" + receivedMessage);
-        // Cập nhật danh sách email nếu có thông tin mới
-        listModel.addElement(receivedMessage);
     }
 
     @Override
@@ -210,6 +267,6 @@ public class EmailReceiver extends JFrame {
     }
 
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(EmailReceiver::new);
+        SwingUtilities.invokeLater(EmailApp::new);
     }
 }

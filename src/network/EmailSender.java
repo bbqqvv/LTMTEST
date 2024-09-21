@@ -70,44 +70,45 @@ public class EmailSender extends JFrame {
             properties.put("mail.smtp.starttls.enable", "true");
 
             Session session = Session.getInstance(properties, new Authenticator() {
-                @Override
                 protected PasswordAuthentication getPasswordAuthentication() {
                     return new PasswordAuthentication(email, password);
                 }
             });
 
-            MimeMessage message = new MimeMessage(session);
+            Message message = new MimeMessage(session);
             message.setFrom(new InternetAddress(email));
-            message.addRecipient(Message.RecipientType.TO, new InternetAddress(to));
+            message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(to));
             message.setSubject(subject);
             message.setText(body);
 
             Transport.send(message);
-            sendUDPMessage(to, subject, body, ip);
             JOptionPane.showMessageDialog(this, "Email sent successfully!");
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Failed to send email.");
+
+            // Gửi thông điệp qua UDP
+            sendUDPMessage(subject, ip);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Failed to send email: " + e.getMessage());
         }
     }
 
-    private void sendUDPMessage(String to, String subject, String message, String ip) {
+    private void sendUDPMessage(String subject, String ip) {
         try {
             DatagramSocket socket = new DatagramSocket();
-            InetAddress address = InetAddress.getByName(ip);  
-
-            String fullMessage = "To: " + to + "\nSubject: " + subject + "\nMessage: " + message;
-            byte[] buffer = fullMessage.getBytes();
-
+            byte[] buffer = subject.getBytes();
+            InetAddress address = InetAddress.getByName(ip);
             DatagramPacket packet = new DatagramPacket(buffer, buffer.length, address, 9876);
             socket.send(packet);
             socket.close();
-        } catch (Exception ex) {
-            ex.printStackTrace();
+            JOptionPane.showMessageDialog(this, "UDP message sent successfully!");
+        } catch (Exception e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Failed to send UDP message: " + e.getMessage());
         }
     }
 
     public static void main(String[] args) {
-        new EmailSender();
+        SwingUtilities.invokeLater(EmailSender::new);
     }
 }
