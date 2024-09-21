@@ -2,26 +2,26 @@ package network;
 
 import javax.swing.*;
 import java.net.*;
-import java.io.*;
+import java.util.Properties;
 import javax.mail.*;
 import javax.mail.Authenticator;
 import javax.mail.PasswordAuthentication;
 import javax.mail.internet.*;
-import java.util.Properties;
 
 public class EmailSender extends JFrame {
-    private JTextField emailField, passwordField, toField, subjectField, ipField;
+    private JTextField emailField, toField, subjectField, ipField;
+    private JPasswordField passwordField;
     private JTextArea messageArea;
     private JButton sendButton;
 
-    // Cố định thông tin SMTP cho Gmail
     private final String smtpHost = "smtp.gmail.com";
-    private final String smtpPort = "587"; // Cổng SMTP cho TLS
+    private final String smtpPort = "587";
 
     public EmailSender() {
         setTitle("Email Sender (Gmail)");
         setSize(400, 400);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
+        setLocationRelativeTo(null);  
 
         emailField = new JTextField(30);
         passwordField = new JPasswordField(30);
@@ -56,7 +56,7 @@ public class EmailSender extends JFrame {
 
     private void sendEmail() {
         String email = emailField.getText();
-        String password = passwordField.getText();
+        String password = new String(passwordField.getPassword());
         String to = toField.getText();
         String subject = subjectField.getText();
         String body = messageArea.getText();
@@ -67,7 +67,7 @@ public class EmailSender extends JFrame {
             properties.put("mail.smtp.host", smtpHost);
             properties.put("mail.smtp.port", smtpPort);
             properties.put("mail.smtp.auth", "true");
-            properties.put("mail.smtp.starttls.enable", "true"); // Sử dụng TLS
+            properties.put("mail.smtp.starttls.enable", "true");
 
             Session session = Session.getInstance(properties, new Authenticator() {
                 @Override
@@ -82,12 +82,8 @@ public class EmailSender extends JFrame {
             message.setSubject(subject);
             message.setText(body);
 
-            // Gửi email qua SMTP
             Transport.send(message);
-
-            // Gửi thông báo qua UDP
             sendUDPMessage(to, subject, body, ip);
-
             JOptionPane.showMessageDialog(this, "Email sent successfully!");
         } catch (Exception ex) {
             ex.printStackTrace();
@@ -98,7 +94,7 @@ public class EmailSender extends JFrame {
     private void sendUDPMessage(String to, String subject, String message, String ip) {
         try {
             DatagramSocket socket = new DatagramSocket();
-            InetAddress address = InetAddress.getByName(ip);  // Nhập từ giao diện
+            InetAddress address = InetAddress.getByName(ip);  
 
             String fullMessage = "To: " + to + "\nSubject: " + subject + "\nMessage: " + message;
             byte[] buffer = fullMessage.getBytes();
